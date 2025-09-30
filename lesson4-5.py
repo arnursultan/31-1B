@@ -1,6 +1,11 @@
 import os
-from sqlalchemy import Column, Integer, String, ForeignKey, create_engine, event
-from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+from typing import List, Optional, Tuple
+from sqlalchemy import (
+    Column, Integer, String, ForeignKey, create_engine, event, Index, func, and_, or_
+)
+from sqlalchemy.orm import declarative_base, relationship, sessionmaker, Session as SASession
+from sqlalchemy.exc import IntegrityError
+
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
 
@@ -22,72 +27,112 @@ if DATABASE_URL.startswith("sqlite"):
 class Chef(Base):
     __tablename__ = 'chefs'
     id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
+    name = Column(String, nullable=False, unique=True)
     country = Column(String)
-    recipes = relationship("Recipe", back_populates="chef", cascade="all, delete-orphan")
+
+    recipes = relationship(
+        "Recipe",
+        back_populates="chef",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
+
+    __table_args__ = (
+        Index("ix_chefs_name", func.lower(name)),
+        Index("ix_chefs_country", func.lower(country)),
+    )
 
     def __repr__(self):
         return f"<Chef id={self.id} name={self.name}>"
+
 
 class Recipe(Base):
     __tablename__ = 'recipes'
     id = Column(Integer, primary_key=True)
     title = Column(String, nullable=False)
-    chef_id = Column(Integer, ForeignKey('chefs.id', ondelete="CASCADE"))
+    chef_id = Column(Integer, ForeignKey('chefs.id', ondelete="CASCADE"), nullable=False)
     cooking_time_minutes = Column(Integer)
+
     chef = relationship("Chef", back_populates="recipes")
-    ingredients = relationship("Ingredient", back_populates="recipe", cascade="all, delete-orphan")
+    ingredients = relationship(
+        "Ingredient",
+        back_populates="recipe",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
+
+    __table_args__ = (
+        Index("ix_recipes_title", func.lower(title)),
+        Index("ix_recipes_chef_id", chef_id),
+        Index("ix_recipes_cooktime", cooking_time_minutes),
+    )
 
     def __repr__(self):
         return f"<Recipe id={self.id} title={self.title}>"
+
 
 class Ingredient(Base):
     __tablename__ = 'ingredients'
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     quantity = Column(String)
-    recipe_id = Column(Integer, ForeignKey('recipes.id', ondelete="CASCADE"))
+    recipe_id = Column(Integer, ForeignKey('recipes.id', ondelete="CASCADE"), nullable=False)
+
     recipe = relationship("Recipe", back_populates="ingredients")
+
+    __table_args__ = (
+        Index("ix_ingredients_name", func.lower(name)),
+        Index("ix_ingredients_recipe_id", recipe_id),
+    )
 
     def __repr__(self):
         return f"<Ingredient id={self.id} name={self.name} qty={self.quantity}>"
+
 
 def init_db():
     Base.metadata.create_all(engine)
     print("Таблицы созданы / проверены.")
 
-def create_chef(session, name: str, country: str = None) -> Chef:
-    existing = session.query(Chef).filter(Chef.name == name).first()
+def create_chef(session: SASession, name: str, country: Optional[str] = None) -> Chef:
+    name = name.strip()
+    existing = session.query(Chef).filter(func.lower(Chef.name) == func.lower(name)).first()
     if existing:
         return existing
     chef = Chef(name=name, country=country)
     session.add(chef)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        chef = session.query(Chef).filter(func.lower(Chef.name) == func.lower(name)).one()
     session.refresh(chef)
     return chef
 
-def add_ingredient(session, recipe: Recipe, name: str, quantity: str = None) -> Ingredient:
-    ing = Ingredient(name=name, quantity=quantity, recipe_id=recipe.id)
+
+def create_recipe(session: SASession, title: str, chef: Chef, cooking_time_minutes: Optional[int] = None) -> Recipe:
+    recipe = Recipe(title=title.strip(), chef_id=chef.id, cooking_time_minutes=cooking_time_minutes)
+    session.add(recipe)
+    session.commit()
+    session.refresh(recipe)
+    return recipe
+
+
+def add_ingredient(session: SASession, recipe: Recipe, name: str, quantity: Optional[str] = None) -> Ingredient:
+    ing = Ingredient(name=name.strip(), quantity=(quantity.strip() if quantity else None), recipe_id=recipe.id)
     session.add(ing)
     session.commit()
     session.refresh(ing)
     return ing
 
-def get_all_recipes(session):
-    return session.query(Recipe).all()
 
-def get_recipes_by_chef_name(session, recipe_title: str):
-    recipe = session.query(Recipe).filter(Recipe.title == recipe_title).first()
-    if not recipe:
-        return None
-    return recipe.ingredients
+def get_all_recipes(session: SASession, limit: int = 100, offset: int = 0, order_by: str = "title") -> List[Recipe]:
+    q = session.query(Recipe)
+    if order_by == "title":
+        q = q.order_by(func.lower(Recipe.title))
+    elif order_by == "time":
+        q = q.order_by(Recipe.cooking_time_minutes.is_(None), Recipe.cooking_time_minutes)
+    elif order_by == "chef":
+        q = q.join(Recipe.chef).order_by(func.lower(Chef.name))
+    return q.offset(offset).limit(limit).all()
 
-def demo():
-    init_db()
-
-    with Session() as session:
-        sanzhar = create_chef(session, name="Sanzhar sybau", country="Ohio")
-        ular = create_chef(session, name="Ular same", country="Oshio")
-
-        borsch = create_recipe(session, recipe=borsch, name="Beetroot", quantity=2)
-        burger
+def get_recipes_by_chef_name(session: SASession, chef_name: str, limit: int = 100) -> List[Recipe]:
