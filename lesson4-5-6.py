@@ -267,5 +267,19 @@ def delete_chef(session: SASession, chef_id: int) -> bool:
     return True
 
 def delete_recipe(session: SASession, recipe_id: int) -> bool:
+    recipe = session.get(Recipe, recipe_id)
+    if not recipe:
+        return False
+    session.delete(recipe)
+    session.commit()
+    return True
 
+def delete_ingredients(session: SASession, ingredient_id: int) -> bool:
+    ing = session.get(Ingredient, ingredient_id)
+    if not ing:
+        return False
+    session.delete(ing)
+    session.commit()
+    return True
 
+def demo():
