@@ -5,7 +5,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker, Session as SASession
 from sqlalchemy.exc import IntegrityError
-
+import argparse
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
 
@@ -135,6 +135,7 @@ def get_all_recipes(session: SASession, limit: int = 100, offset: int = 0, order
         q = q.join(Recipe.chef).order_by(func.lower(Chef.name))
     return q.offset(offset).limit(limit).all()
 
+
 def get_recipes_by_chef_name(session: SASession, chef_name: str, limit: int = 100) -> List[Recipe]:
     return (
         session.query(Recipe)
@@ -144,8 +145,43 @@ def get_recipes_by_chef_name(session: SASession, chef_name: str, limit: int = 10
         .all()
     )
 
-def get_ingredients_for_recipre(session: SASession, recipe_title: str) -> Optional[List[Ingredient]]:
+
+def get_ingredients_for_recipe(session: SASession, recipe_title: str) -> Optional[List[Ingredient]]:
     recipe = session.query(Recipe).filter(func.lower(Recipe.title) == recipe_title.lower()).first()
     if not recipe:
         return None
     return recipe.ingredients
+
+
+def search_recipes(
+    session: SASession,
+    title_substring: Optional[str] = None,
+    chef_name: Optional[str] = None,
+    ingredient_substring: Optional[str] = None,
+    cook_time_range: Optional[Tuple[Optional[int], Optional[int]]] = None,
+    limit: int = 100,
+    offset: int = 0,
+    order_by: str = "title",
+) -> List[Recipe]:
+
+    q = session.query(Recipe)
+
+    if chef_name:
+        q = q.join(Recipe.chef).filter(func.lower(Chef.name).like(f"%{chef_name.lower()}%"))
+
+    if title_substring:
+        q = q.filter(func.lower(Recipe.title).like(f"%{title_substring.lower()}%"))
+
+    if ingredient_substring:
+        q = q.join(Recipe.ingredients).filter(func.lower(Ingredient.name).like(f"%{ingredient_substring.lower()}%"))
+
+    if cook_time_range:
+        tmin, tmax = cook_time_range
+        if tmin is not None:
+            q = q.filter(Recipe.cooking_time_minutes >= tmin)
+        if tmax is not None:
+            q = q.filter(Recipe.cooking_time_minutes <= tmax)
+
+    q = q.distinct()
+
+    if order_by == "title":
