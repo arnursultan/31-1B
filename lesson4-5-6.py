@@ -136,3 +136,16 @@ def get_all_recipes(session: SASession, limit: int = 100, offset: int = 0, order
     return q.offset(offset).limit(limit).all()
 
 def get_recipes_by_chef_name(session: SASession, chef_name: str, limit: int = 100) -> List[Recipe]:
+    return (
+        session.query(Recipe)
+        .join(Chef)
+        .filter(func.lower(Chef.name).like(f"%{chef_name.lower()}%"))
+        .limit(limit)
+        .all()
+    )
+
+def get_ingredients_for_recipre(session: SASession, recipe_title: str) -> Optional[List[Ingredient]]:
+    recipe = session.query(Recipe).filter(func.lower(Recipe.title) == recipe_title.lower()).first()
+    if not recipe:
+        return None
+    return recipe.ingredients
