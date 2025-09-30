@@ -185,3 +185,87 @@ def search_recipes(
     q = q.distinct()
 
     if order_by == "title":
+        q = q.order_by(func.lower(Recipe.title))
+    elif order_by == "time":
+        q = q.order_by(Recipe.cooking_time_minutes.is_(None), Recipe.cooking_time_minutes)
+    elif order_by == "chef":
+        q = q.join(Recipe.chef).order_by(func.lower(Chef.name))
+
+    return q.offset(offset).limit(limit).all()
+
+
+def list_chefs(session: SASession, limit: int = 100, offset: int = 0, q: Optional[str] = None) -> List[Chef]:
+    query = session.query(Chef)
+    if q:
+        query = query.filter(
+            or_(func.lower(Chef.name).like(f"%{q.lower()}%"), func.lower(Chef.country).like(f"%{q.lower()}%"))
+        )
+    return query.order_by(func.lower(Chef.name)).offset(offset).limit(limit).all()
+
+def update_chef(session: SASession, chef_id: int, *, name: Optional[str] = None, country: Optional[str] = None) -> Optional[Chef]:
+    chef = session.get(Chef, chef_id)
+    if not chef:
+        return None
+    if name:
+        chef.name = name.strip()
+    if country is not None:
+        chef.country = country.strip() if country else None
+    session.commit()
+    session.refresh(chef)
+    return chef
+
+
+def update_recipe(
+    session: SASession,
+    recipe_id: int,
+    *,
+    title: Optional[str] = None,
+    cooking_time_minutes: Optional[int] = None,
+    chef_id: Optional[int] = None,
+
+) -> Optional[Recipe]:
+    recipe = session.get(Recipe, recipe_id)
+    if not recipe:
+        return None
+    if title:
+        recipe.title = title.strip()
+    if cooking_time_minutes is not None:
+        recipe.cooking_time_minutes = cooking_time_minutes
+    if chef_id is not None:
+        if not session.get(Chef, chef_id):
+            raise ValueError(f"Chef with id={chef_id} does not exist")
+        recipe.chef_id = chef_id
+    session.commit()
+    session.refresh(recipe)
+    return recipe
+
+
+def update_ingredients(
+    session: SASession,
+    ingredient_id: int,
+    *,
+    name: Optional[str] = None,
+    quantity: Optional[int] = None,
+) -> Optional[Ingredient]:
+    ing = session.get(Ingredient, ingredient_id)
+    if not ing:
+        return None
+    if name:
+        ing.name = name.strip()
+    if quantity is not None:
+        ing.quantity = quantity.strip() if quantity else None
+    session.commit()
+    session.refresh(ing)
+    return ing
+
+def delete_chef(session: SASession, chef_id: int) -> bool:
+    chef = session.get(Chef, chef_id)
+    if not chef:
+        return False
+    session.delete(chef)
+    session.commit()
+    return True
+
+def delete_recipe(session: SASession, recipe_id: int) -> bool:
+
+
