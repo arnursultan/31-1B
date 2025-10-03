@@ -1,4 +1,5 @@
 import os
+from email.policy import default
 from typing import List, Optional, Tuple
 from sqlalchemy import (
     Column, Integer, String, ForeignKey, create_engine, event, Index, func, and_, or_
@@ -283,3 +284,101 @@ def delete_ingredients(session: SASession, ingredient_id: int) -> bool:
     return True
 
 def demo():
+    init_db()
+    with Session() as session:
+        sanzhar = create_chef(session, name="Sanzhar Sybau", country="KG")
+        ular = create_chef(session, name="Ular Same", country="KZ")
+
+        borsch = create_recipe(session, title="Borsch", chef=sanzhar, cooking_time_minutes=90)
+        salad = create_recipe(session, title="Ular`s Salad", chef=ular, cooking_time_minutes=10)
+
+        add_ingredient(session, recipe=borsch, name="Beetroot", quantity="2 pcs")
+        add_ingredient(session, recipe=borsch, name="Potato", quantity="3 pcs")
+        add_ingredient(session, recipe=salad, name="Tomato", quantity="2 pcs")
+        add_ingredient(session, recipe=salad, name="Cucumber", quantity="1 pcs")
+
+        print("\n---  Все рецепты (с сортировкой по шефу) ---")
+        for r in get_all_recipes(session, order_by="chef"):
+            print(f"{r.title}({r.cooking_time_minutes} min) by {r.chef.name}")
+            for ing in r.ingredients:
+                print(f" - {ing.name} (id={r.id}")
+
+        print("\n--- Поиск: шеф 'Sanzhar' ---")
+        for r in get_recipes_by_chef_name(session, "Sanzhar"):
+            print(f" {r.title} (id={r.id})")
+
+        print("\n--- Поиск: содержит ингредиент 'tom' и время <=30 ---")
+        for r in search_recipes(session, ingredient_substring="tom", cook_time_range=(None, 30)):
+            ings = ", ".join(i.name for i in r.ingredients)
+            print(f"  {r.title} | chef={r.chef.name} | {r.cooking_time_minutes} min | [{ings}]")
+
+        print("\n--- Ингредиенты для 'Borsch' ---")
+        ingredients = get_ingredients_for_recipe(session, "Borsch")
+        if ingredients:
+            for ing in ingredients:
+                print(f" - {ing.name}: {ing.quantity}")
+            else:
+                print("Рецепт не найден.")
+
+        print("\n--- UPDATE: переименуем 'Ular's Salad' в 'Village Salad' и время=12 ---")
+        update_recipe(session, recipe_id=salad.id, title="Village Salad", cooking_time_minutes=12)
+        print(session.get(Recipe, salad.id))
+
+        print("\n--- DELETE: удалим один ингредиент салата ---")
+        any_ing = session.query(Ingredient).filter(Ingredient.recipe_id == salad.id).first()
+        delete_ingredients(session, any_ing.id)
+        print("Осталось ингредиентов:", session.query(Ingredient).filter(Ingredient.recipe_id == salad.id).count())
+
+        print("\n--- DELETE: каскадно удалим шефа 'Ular Same' (уходят его рецепты и ингредиенты) ---")
+        delete_chef(session, ular.id)
+        print("Есть ли рецепт салата?", bool(session.get(Recipe, salad.id)))
+
+def main_cli():
+    parser = argparse.ArgumentParser(description="Recipes CRUD / Search / Delete")
+    sub = parser.add_subparsers(dest="cmd", required=True)
+
+    sub.add_parser("init")
+
+    p_list = sub.add_parser("list")
+    p_list.add_argument("--q", type=str, default=None)
+    p_list.add_argument("--limit", type=int, default=50)
+    p_list.add_argument("--offset", type=int, default=0)
+
+    p_addchef = sub.add_parser("add-chef")
+    p_addchef.add_argument("--name", required=True)
+    p_addchef.add_argument("--country")
+
+    p_addrecipe = sub.add_parser("add-recipe")
+    p_addrecipe.add_argument("--chef", required=True, help="Имя шефа (поиск без учета регистра)")
+    p_addrecipe.add_argument("--title", required=True)
+    p_addrecipe.add_argument("--time", type=int)
+
+    p_addrecipe = sub.add_parser("add-ingredient")
+    p_addrecipe.add_argument("--recipe", required=True, help="Название рецепта")
+    p_addrecipe.add_argument("--name", required=True)
+    p_addrecipe.add_argument("--qty")
+
+    p_search = sub.add_parser("search")
+    p_search.add_argument("--title")
+    p_search.add_argument("--chef")
+    p_search.add_argument("--ingredient")
+    p_search.add_argument("--min_time", type=int)
+    p_search.add_argument("--max_time", type=int)
+    p_search.add_argument("--limit", type=int, default=50)
+
+    p_delchef = sub.add_parser("del-chef")
+    p_delchef.add_argument("--id", type=int, required=True)
+
+    p_delrecipe = sub.add_parser("del-recipe")
+    p_delrecipe.add_argument("--id", type=int, required=True)
+
+    p_deling = sub.add_parser("del-ingredient")
+    p_deling.add_argument("--id", type=int, required=True)
+
+    p_demo = sub.add_parser("demo")
+
+
+
+
+
+
