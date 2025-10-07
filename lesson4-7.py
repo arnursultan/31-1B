@@ -1,5 +1,4 @@
 import os
-from email.policy import default
 from typing import List, Optional, Tuple
 from sqlalchemy import (
     Column, Integer, String, ForeignKey, create_engine, event, Index, func, and_, or_
@@ -222,8 +221,7 @@ def update_recipe(
     *,
     title: Optional[str] = None,
     cooking_time_minutes: Optional[int] = None,
-    chef_id: Optional[int] = None,
-
+    chef_id: Optional[int] = None
 ) -> Optional[Recipe]:
     recipe = session.get(Recipe, recipe_id)
     if not recipe:
@@ -241,12 +239,12 @@ def update_recipe(
     return recipe
 
 
-def update_ingredients(
+def update_ingredient(
     session: SASession,
     ingredient_id: int,
     *,
     name: Optional[str] = None,
-    quantity: Optional[int] = None,
+    quantity: Optional[str] = None
 ) -> Optional[Ingredient]:
     ing = session.get(Ingredient, ingredient_id)
     if not ing:
@@ -267,6 +265,7 @@ def delete_chef(session: SASession, chef_id: int) -> bool:
     session.commit()
     return True
 
+
 def delete_recipe(session: SASession, recipe_id: int) -> bool:
     recipe = session.get(Recipe, recipe_id)
     if not recipe:
@@ -275,7 +274,8 @@ def delete_recipe(session: SASession, recipe_id: int) -> bool:
     session.commit()
     return True
 
-def delete_ingredients(session: SASession, ingredient_id: int) -> bool:
+
+def delete_ingredient(session: SASession, ingredient_id: int) -> bool:
     ing = session.get(Ingredient, ingredient_id)
     if not ing:
         return False
@@ -290,24 +290,24 @@ def demo():
         ular = create_chef(session, name="Ular Same", country="KZ")
 
         borsch = create_recipe(session, title="Borsch", chef=sanzhar, cooking_time_minutes=90)
-        salad = create_recipe(session, title="Ular`s Salad", chef=ular, cooking_time_minutes=10)
+        salad = create_recipe(session, title="Ular's Salad", chef=ular, cooking_time_minutes=10)
 
         add_ingredient(session, recipe=borsch, name="Beetroot", quantity="2 pcs")
         add_ingredient(session, recipe=borsch, name="Potato", quantity="3 pcs")
         add_ingredient(session, recipe=salad, name="Tomato", quantity="2 pcs")
-        add_ingredient(session, recipe=salad, name="Cucumber", quantity="1 pcs")
+        add_ingredient(session, recipe=salad, name="Cucumber", quantity="1 pc")
 
-        print("\n---  Все рецепты (с сортировкой по шефу) ---")
+        print("\n--- Все рецепты (с сортировкой по шефу) ---")
         for r in get_all_recipes(session, order_by="chef"):
-            print(f"{r.title}({r.cooking_time_minutes} min) by {r.chef.name}")
+            print(f"{r.title} ({r.cooking_time_minutes} min) by {r.chef.name}")
             for ing in r.ingredients:
-                print(f" - {ing.name} (id={r.id}")
+                print(f"  - {ing.name}: {ing.quantity}")
 
         print("\n--- Поиск: шеф 'Sanzhar' ---")
         for r in get_recipes_by_chef_name(session, "Sanzhar"):
-            print(f" {r.title} (id={r.id})")
+            print(f"  {r.title} (id={r.id})")
 
-        print("\n--- Поиск: содержит ингредиент 'tom' и время <=30 ---")
+        print("\n--- Поиск: содержит ингредиент 'tom' и время <= 30 ---")
         for r in search_recipes(session, ingredient_substring="tom", cook_time_range=(None, 30)):
             ings = ", ".join(i.name for i in r.ingredients)
             print(f"  {r.title} | chef={r.chef.name} | {r.cooking_time_minutes} min | [{ings}]")
@@ -316,9 +316,9 @@ def demo():
         ingredients = get_ingredients_for_recipe(session, "Borsch")
         if ingredients:
             for ing in ingredients:
-                print(f" - {ing.name}: {ing.quantity}")
-            else:
-                print("Рецепт не найден.")
+                print(f"  - {ing.name}: {ing.quantity}")
+        else:
+            print("Рецепт не найден.")
 
         print("\n--- UPDATE: переименуем 'Ular's Salad' в 'Village Salad' и время=12 ---")
         update_recipe(session, recipe_id=salad.id, title="Village Salad", cooking_time_minutes=12)
@@ -326,12 +326,13 @@ def demo():
 
         print("\n--- DELETE: удалим один ингредиент салата ---")
         any_ing = session.query(Ingredient).filter(Ingredient.recipe_id == salad.id).first()
-        delete_ingredients(session, any_ing.id)
+        delete_ingredient(session, any_ing.id)
         print("Осталось ингредиентов:", session.query(Ingredient).filter(Ingredient.recipe_id == salad.id).count())
 
         print("\n--- DELETE: каскадно удалим шефа 'Ular Same' (уходят его рецепты и ингредиенты) ---")
         delete_chef(session, ular.id)
         print("Есть ли рецепт салата?", bool(session.get(Recipe, salad.id)))
+
 
 def main_cli():
     parser = argparse.ArgumentParser(description="Recipes CRUD / Search / Delete")
@@ -353,17 +354,17 @@ def main_cli():
     p_addrecipe.add_argument("--title", required=True)
     p_addrecipe.add_argument("--time", type=int)
 
-    p_addrecipe = sub.add_parser("add-ingredient")
-    p_addrecipe.add_argument("--recipe", required=True, help="Название рецепта")
-    p_addrecipe.add_argument("--name", required=True)
-    p_addrecipe.add_argument("--qty")
+    p_adding = sub.add_parser("add-ingredient")
+    p_adding.add_argument("--recipe", required=True, help="Название рецепта")
+    p_adding.add_argument("--name", required=True)
+    p_adding.add_argument("--qty")
 
     p_search = sub.add_parser("search")
     p_search.add_argument("--title")
     p_search.add_argument("--chef")
     p_search.add_argument("--ingredient")
-    p_search.add_argument("--min_time", type=int)
-    p_search.add_argument("--max_time", type=int)
+    p_search.add_argument("--min-time", type=int)
+    p_search.add_argument("--max-time", type=int)
     p_search.add_argument("--limit", type=int, default=50)
 
     p_delchef = sub.add_parser("del-chef")
@@ -377,8 +378,68 @@ def main_cli():
 
     p_demo = sub.add_parser("demo")
 
+    args = parser.parse_args()
+    if args.cmd == "init":
+        init_db()
+        return
+
+    with Session() as session:
+        if args.cmd == "list":
+            for c in list_chefs(session, q=args.q, limit=args.limit, offset=args.offset):
+                print(f"{c.id}: {c.name} ({c.country})  | recipes={len(c.recipes)}")
+
+        elif args.cmd == "add-chef":
+            chef = create_chef(session, name=args.name, country=args.country)
+            print("Создан/получен:", chef)
+
+        elif args.cmd == "add-recipe":
+            chef = session.query(Chef).filter(func.lower(Chef.name) == func.lower(args.chef)).first()
+            if not chef:
+                raise SystemExit(f"Шеф '{args.chef}' не найден.")
+            rec = create_recipe(session, title=args.title, chef=chef, cooking_time_minutes=args.time)
+            print("Создан рецепт:", rec)
+
+        elif args.cmd == "add-ingredient":
+            rec = session.query(Recipe).filter(func.lower(Recipe.title) == func.lower(args.recipe)).first()
+            if not rec:
+                raise SystemExit(f"Рецепт '{args.recipe}' не найден.")
+            ing = add_ingredient(session, recipe=rec, name=args.name, quantity=args.qty)
+            print("Добавлен ингредиент:", ing)
+
+        elif args.cmd == "search":
+            rng = (args["min_time"] if hasattr(args, "min_time") else args.min_time,
+                   args["max_time"] if hasattr(args, "max_time") else args.max_time)
+            results = search_recipes(
+                session,
+                title_substring=args.title,
+                chef_name=args.chef,
+                ingredient_substring=args.ingredient,
+                cook_time_range=rng if (rng[0] is not None or rng[1] is not None) else None,
+                limit=args.limit,
+            )
+            for r in results:
+                ings = ", ".join(i.name for i in r.ingredients)
+                print(f"{r.id}: {r.title} | chef={r.chef.name} | time={r.cooking_time_minutes} | [{ings}]")
+
+        elif args.cmd == "del-chef":
+            ok = delete_chef(session, args.id)
+            print("Удалён шеф:", ok)
+
+        elif args.cmd == "del-recipe":
+            ok = delete_recipe(session, args.id)
+            print("Удалён рецепт:", ok)
+
+        elif args.cmd == "del-ingredient":
+            ok = delete_ingredient(session, args.id)
+            print("Удалён ингредиент:", ok)
+
+        elif args.cmd == "demo":
+            demo()
 
 
-
-
-
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) > 1:
+        main_cli()
+    else:
+        demo()
