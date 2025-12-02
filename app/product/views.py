@@ -68,6 +68,10 @@ class BrandCarViewSet(viewsets.ModelViewSet):
     serializer_class = BrandCarSerializers
     permission_classes = [IsAuthenticatedOrReadOnly]
 
+    filterset_fields = ["title"]
+    search_fields = ["title"]
+    ordering_fields = ["title"]
+
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         self.perform_destroy(instance)
@@ -92,6 +96,10 @@ class ModelCarViewSet(viewsets.ModelViewSet):
     queryset = ModelCar.objects.select_related('brand').all().order_by('title')
     serializer_class = ModelCarSerilaizer
     permission_classes = [IsAuthenticatedOrReadOnly]
+
+    filterset_fields = ["title", "brand"]
+    search_fields = ["title"]
+    ordering_fields = ["title", "brand"]
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
