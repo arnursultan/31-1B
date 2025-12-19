@@ -28,7 +28,7 @@ class RegisterAPIView(APIView):
             status=status.HTTP_201_CREATED
         )
 
-class UserProfileAPIView(APIView):
+class ProfileAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self,request):
