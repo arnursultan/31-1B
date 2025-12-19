@@ -36,6 +36,5 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'email',
             'phone',
             'is_active',
-            'is_staff',
-            'data_joined'
+            'is_staff'
         )
