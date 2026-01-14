@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Success{% endblock %}
+
+{% block content %}
+<div class="bg-slate-800 rounded-xl p-8 shadow-xl">
+    <h2 class="text-2xl font-bold mb-4">✅ OAuth Success</h2>
+
+    <p class="mb-2 font-semibold">Access Token</p>
+    <pre class="bg-slate-900 p-3 rounded-lg text-xs overflow-x-auto">{{ access }}</pre>
+
+    <p class="mt-4 mb-2 font-semibold">Refresh Token</p>
+    <pre class="bg-slate-900 p-3 rounded-lg text-xs overflow-x-auto">{{ refresh }}</pre>
+
+    <p class="mt-6 text-sm text-slate-400">
+        Use: <code class="bg-slate-900 px-2 py-1 rounded">Authorization: Bearer TOKEN</code>
+    </p>
+</div>
+{% endblock %}

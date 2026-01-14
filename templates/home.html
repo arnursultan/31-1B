@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <h1 class="display-4 fw-bold">🚀 Server 31-1B</h1>
+    <p class="lead mt-3">
+        Backend API with OAuth, JWT, Celery, Redis, SMTP
+    </p>
+
+    <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+        <a href="/admin/" class="btn btn-primary btn-lg">
+            🔐 Admin
+        </a>
+
+        <a href="/api/docs/" class="btn btn-outline-info btn-lg">
+            📘 Swagger
+        </a>
+
+        <a href="/auth/login/google-oauth2/" class="btn btn-danger btn-lg">
+            🔑 Google Login
+        </a>
+
+        <a href="/auth/login/github/" class="btn btn-dark btn-lg">
+            🐙 GitHub Login
+        </a>
+    </div>
+</div>
+{% endblock %}

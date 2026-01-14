@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}FixServer{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-slate-900 text-slate-200 min-h-screen">
+<div class="max-w-3xl mx-auto px-4 py-10">
+    {% block content %}{% endblock %}
+</div>
+</body>
+</html>
