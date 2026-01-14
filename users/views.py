@@ -60,7 +60,7 @@ class AdminDashboardView(APIView):
 
     def get(self, request):
         return Response({
-            "detail": "Admin access granted",
+            "detail": "Предоставлен доступ администратора",
             "users_count": User.objects.count(),
         })
 
@@ -70,7 +70,7 @@ class SuperUserOnlyView(APIView):
 
     def get(self, request):
         return Response({
-            "detail": "Superuser access granted",
+            "detail": "Доступ суперпользователя предоставлен",
         })
 
 class PasswordResetRequestView(APIView):
@@ -97,7 +97,7 @@ class PasswordResetRequestView(APIView):
             send_reset_password_email.delay(user.email, reset_link)
 
         return Response(
-            {"detail": "If email exists, reset link was sent"},
+            {"detail": "Если электронное письмо существует, была отправлена ссылка для сброса"},
             status=status.HTTP_200_OK,
         )
 
@@ -119,6 +119,6 @@ class PasswordResetConfirmView(APIView):
         user.save()
 
         return Response(
-            {"detail": "Password successfully updated"},
+            {"detail": "Пароль успешно обновлен"},
             status=status.HTTP_200_OK,
         )

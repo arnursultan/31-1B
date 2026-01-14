@@ -3,16 +3,16 @@
 
 {% block content %}
 <div class="bg-slate-800 rounded-xl p-8 shadow-xl">
-    <h2 class="text-2xl font-bold mb-4">вњ… OAuth Success</h2>
+    <h2 class="text-2xl font-bold mb-4"> Успешная OAuth-авторизация</h2>
 
-    <p class="mb-2 font-semibold">Access Token</p>
+    <p class="mb-2 font-semibold">Токен доступа</p>
     <pre class="bg-slate-900 p-3 rounded-lg text-xs overflow-x-auto">{{ access }}</pre>
 
-    <p class="mt-4 mb-2 font-semibold">Refresh Token</p>
+    <p class="mt-4 mb-2 font-semibold">Токен обновления</p>
     <pre class="bg-slate-900 p-3 rounded-lg text-xs overflow-x-auto">{{ refresh }}</pre>
 
     <p class="mt-6 text-sm text-slate-400">
-        Use: <code class="bg-slate-900 px-2 py-1 rounded">Authorization: Bearer TOKEN</code>
+        Используйте заголовок авторизации: <code class="bg-slate-900 px-2 py-1 rounded">Authorization: Bearer TOKEN</code>
     </p>
 </div>
 {% endblock %}
