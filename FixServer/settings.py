@@ -94,9 +94,10 @@ SOCIAL_AUTH_PIPELINE = (
     "social_core.pipeline.social_auth.social_user",
     "social_core.pipeline.user.create_user",
     "users.pipeline.send_welcome_email_pipeline",
-    "users.pipeline.generate_jwt_pipeline",
     "social_core.pipeline.social_auth.associate_user",
+    "social_core.pipeline.social_auth.load_extra_data",
 )
+
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -106,9 +107,9 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ),
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "100/hour",
-        "login": "5/minute",
-        "password_reset": "100/hour",
+        "anon": "50/hour",
+        "login": "3/minute",
+        "password_reset": "20/hour",
     },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
@@ -129,6 +130,12 @@ CELERY_BROKER_URL = config("REDIS_URL")
 CELERY_RESULT_BACKEND = config("REDIS_URL")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
+
+FLOWER_BASIC_AUTH = config(
+    "FLOWER_BASIC_AUTH",
+    default=None,
+)
+
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

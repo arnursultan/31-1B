@@ -1,19 +1,22 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils.encoding import force_bytes
 from django.utils.http import (
     urlsafe_base64_encode,
-    urlsafe_base64_decode,
 )
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import (
-    IsAuthenticated,
-    AllowAny,
-)
 from rest_framework import status
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.permissions import (
+    AllowAny,
+    IsAuthenticated,
+)
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .permissions import IsAdmin, IsSuperUser
@@ -31,14 +34,26 @@ class ThrottledTokenObtainPairView(TokenObtainPairView):
 
 class OAuthSuccessView(APIView):
     permission_classes = [AllowAny]
+    authentication_classes = [SessionAuthentication]
 
     def get(self, request):
+        user = request.user
+
+        if not user or not user.is_authenticated:
+            return HttpResponse(
+                "OAuth failed or user not authenticated",
+                status=401,
+            )
+
+        refresh = RefreshToken.for_user(user)
+
         return render(
             request,
             "auth/oauth_success.html",
             {
-                "access": request.session.get("access"),
-                "refresh": request.session.get("refresh"),
+                "email": user.email,
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
             },
         )
 
@@ -64,7 +79,6 @@ class AdminDashboardView(APIView):
             "users_count": User.objects.count(),
         })
 
-
 class SuperUserOnlyView(APIView):
     permission_classes = [IsSuperUser]
 
@@ -77,13 +91,15 @@ class PasswordResetRequestView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [PasswordResetThrottle]
 
+    def get(self, request):
+        return render(request, "auth/password_reset_request.html")
+
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         email = serializer.validated_data["email"]
         user = User.objects.filter(email=email).first()
-
 
         if user:
             uid = urlsafe_base64_encode(force_bytes(user.pk))
@@ -96,13 +112,24 @@ class PasswordResetRequestView(APIView):
 
             send_reset_password_email.delay(user.email, reset_link)
 
-        return Response(
-            {"detail": "Если электронное письмо существует, была отправлена ссылка для сброса"},
-            status=status.HTTP_200_OK,
+        return render(
+            request,
+            "auth/password_reset_request.html",
+            {"success": True},
         )
 
 class PasswordResetConfirmView(APIView):
     permission_classes = [AllowAny]
+
+    def get(self, request, uidb64, token):
+        return render(
+            request,
+            "auth/password_reset_confirm.html",
+            {
+                "uid": uidb64,
+                "token": token,
+            },
+        )
 
     def post(self, request, uidb64, token):
         serializer = PasswordResetConfirmSerializer(
@@ -118,7 +145,8 @@ class PasswordResetConfirmView(APIView):
         user.set_password(serializer.validated_data["password"])
         user.save()
 
-        return Response(
-            {"detail": "Пароль успешно обновлен"},
-            status=status.HTTP_200_OK,
+        return render(
+            request,
+            "auth/password_reset_confirm.html",
+            {"success": True},
         )
